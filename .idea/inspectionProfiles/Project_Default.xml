@@ -1,0 +1,28 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="pytorch-lightning" />
+          <option value="albumentations" />
+          <option value="imageio-ffmpeg" />
+          <option value="torch-fidelity" />
+          <option value="omegaconf" />
+          <option value="test-tube" />
+          <option value="streamlit" />
+          <option value="pytorch-ssim" />
+          <option value="kornia" />
+          <option value="clip" />
+        </list>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="PyStubPackagesAdvertiser" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="pandas" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>

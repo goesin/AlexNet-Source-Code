@@ -1,0 +1,13 @@
+"""
+方法	                在哪个阶段	        主要功能
+__init__()*	            初始化	            配置尺寸、均值、内存、训练/测试选项
+get_data_dims()	        初始化及数据组织	    告诉程序每张图片和标签的维度
+start_loader()	        训练数据读取	        启动JPEG加载线程
+start_color_noise_maker()	训练增强	        启动PCA颜色扰动线程
+get_next_batch()*	    训练与测试	        总调度函数，组织一次完整的数据获取流程
+get_cropped_data()	    训练与测试	        调用裁剪函数，再调用均值减法
+__trim_borders()*	    训练与测试	        训练随机裁剪/翻转，测试中心或十视图裁剪
+subtract_mean()         训练与测试	        执行均值减法
+get_labels()	        批次输出	            基类未实现；由子类整理标签
+get_plottable_data()	可视化	            把处理后的数据转换成可显示的图片
+"""

@@ -25,26 +25,26 @@ class JPEGBatchLoaderThread(Thread):
         #print "loading %d" % self.bnum
         
     @staticmethod
-    def load_jpeg_batch((strings, orig_sizes, labels), data_mean, no_crop, label_offset, tgt):
-        lab_arr = n.zeros((len(strings), 1), dtype=n.single)
-        failed = 0
-        img256 = n.zeros((256, 256, 3), dtype=n.uint8) if no_crop else None
+    def load_jpeg_batch((strings, orig_sizes, labels), data_mean, no_crop, label_offset, tgt):#这段代码的意义是把图片放在画布的中间，然后把像素展开，string是准备好的数据中的一项，可以理解为所有图片的bytes数据组成的列表，label可以理解为所有图片标签组成的列表，data_mean是之前已经算好的所有图片的均值（是哪一类均值还不知道），no_crop是布尔，意思是不需要剪裁的，no_crop = True，意思就是如果不需要剪裁这事为真，label_offset是标签偏移量，用来调整标签的编号方式，一旦工程要求编号从0开始，但源文件是从1开始，它就起作用了
+        lab_arr = n.zeros((len(strings), 1), dtype=n.single) #创建一个全为零的数组，用来存放这一批图片的数字标签，可以理解为labels'array
+        failed = 0 # 记录加载失败的次数
+        img256 = n.zeros((256, 256, 3), dtype=n.uint8) if no_crop else None #如果no_crop=True，就准备一张 256×256 的 RGB 空画布：如果图片不需要被剪裁，准备一张画布
         for k,(s,l) in enumerate(zip(strings, labels)):
             try:
-                ima = n.asarray(Image.open(StringIO(s)).convert('RGB'))
+                ima = n.asarray(Image.open(StringIO(s)).convert('RGB')) #ima=asarray对象，shape经过asarray是高×宽×通道，单通道时ima是H×W，rgb通道时是H×W×C，covert（RGB）变成同一shape。StringIO(s)是把bytes包装成一个文件
                 if no_crop:
                     off_y, off_x = (256 - ima.shape[0]) / 2, (256 - ima.shape[1]) / 2
-                    img256[:] = data_mean
+                    img256[:] = data_mean # 这个data_mean可能是标量
                     img256[off_y:ima.shape[0]+off_y,off_x:ima.shape[1]+off_x,:] = ima
-                    tgt[k - failed,:] = img256.swapaxes(0,2).swapaxes(1,2).flatten()
+                    tgt[k - failed,:] = img256.swapaxes(0,2).swapaxes(1,2).flatten() # 把数据转换后展开，先转成CHW，再变成一行
                 else:
                     tgt[k - failed,:] = ima.swapaxes(0,2).swapaxes(1,2).flatten()
                 # For the 2012 test set, the labels will be None
-                lab_arr[k - failed,0] = 0 if l[1] is None else l[1] + label_offset
+                lab_arr[k - failed,0] = 0 if l[1] is None else l[1] + label_offset #功能：标签整理与存储。 有真实标签时，保存调整后的类别编号，供训练损失计算或验证评价使用；无真实标签时，以0占位，维持数据格式一致。该语句本身不计算损失，也不判断预测是否正确。
             except IOError:
                 failed += 1
         return {'data': tgt[:len(strings) - failed,:],
-                'labels': lab_arr[:len(strings) - failed,:]}
+                'labels': lab_arr[:len(strings) - failed,:]}#经过这个函数处理的图片bytes的shape都会变成(1,???)，所以data这个key是len(strings) - failed行摞一起的这种数据
     
     def run(self):
         p = JPEGBatchLoaderThread.load_jpeg_batch(unpickle(self.path),
@@ -92,8 +92,8 @@ class JPEGCroppedImageNetDP(ImageNetDP):
             
         self.num_noise = self.batch_size
         self.batches_generated, self.loaders_started = 0, 0
-        self.data_mean_crop = self.data_mean.reshape((3,self.img_size,self.img_size))[:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size].reshape((1,3*self.inner_size**2))
-        if self.no_crop or self.scalar_mean:
+        self.data_mean_crop = self.data_mean.reshape((3,self.img_size,self.img_size))[:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size].reshape((1,3*self.inner_size**2))#data_mean在convdata.py第39行，属于batch_meta里的。语法拆解：data_mean是数组，先reshape成(3通道，h，w)的形状，中括号[]是数组切片，把border_size外的切掉，然后再reshape，第二个reshape的1是加的batch维，方便后面运算，3×inner的平方，是把刚才切割好的部分的c×h×w，第二个reshape是相当于把之前展开切完的数据再变成1行，c×h×w列。
+        if self.no_crop or self.scalar_mean: # 有可能是为了padding路径准备的，因为下面计算出来的data_mean_crop应该是个标量，对data_mean整体取了平均值
             self.data_mean_crop = self.data_mean.mean()
             
     def get_data_dims(self, idx=0):
@@ -199,14 +199,14 @@ class JPEGCroppedImageNetDP(ImageNetDP):
         return epoch, batchnum, [self.data[self.d_idx]['data'].T, self.data[self.d_idx]['labels'].T]
        
     def get_cropped_data(self, data):
-        cropped = self.cropped_data[self.d_idx]
+        cropped = self.cropped_data[self.d_idx] #从cropped_data中取出索引对应的数组。AI解读说可以减少反复创建大型数组的开销，现在不懂，有时间查一下是什么意思。cropped_data，self.d_idx是啥？
         if cropped.shape[0] != data['data'].shape[0] * self.data_mult:
             cropped = self.cropped_data[self.d_idx] = n.zeros((data['data'].shape[0] * self.data_mult, cropped.shape[1]), dtype=n.float32)
-        self.__trim_borders(data['data'], cropped)
+        self.__trim_borders(data['data'], cropped) #剪裁，data['data']是待剪裁的数据，cropped接收剪裁结果的参数，直接修改cropped？
 
-        return self.subtract_mean(cropped)
+        return self.subtract_mean(cropped) #把cropped中心化
         
-    def subtract_mean(self,data):
+    def subtract_mean(self,data):#在上面那句这个data是cropped
         data -= self.data_mean_crop
         return data
         
@@ -218,11 +218,11 @@ class JPEGCroppedImageNetDP(ImageNetDP):
         mean = self.data_mean_crop if data.flags.f_contiguous or self.scalar_mean else self.data_mean_crop.T
         return n.require((data + (mean if add_mean else 0)).T.reshape(data.shape[1], 3, self.inner_size, self.inner_size).swapaxes(1,3).swapaxes(1,2) / 255.0, dtype=n.single)
     
-    def __trim_borders(self, x, target):
+    def __trim_borders(self, x, target):#x：需要裁剪的图片数据，上面的一摞由一行数据组成的图片信息，target：接收裁剪结果的数组
         y = x.reshape(x.shape[0], 3, self.img_size, self.img_size)
 
         if self.test: # don't need to loop over cases
-            if self.multiview:
+            if self.multiview: # test = Ture, multiview = True，固定剪裁，多视图剪裁
                 start_positions = [(0,0),  (0, self.border_size*2),
                                    (self.border_size, self.border_size),
                                   (self.border_size*2, 0), (self.border_size*2, self.border_size*2)]
@@ -231,9 +231,9 @@ class JPEGCroppedImageNetDP(ImageNetDP):
                     pic = y[:,:,start_positions[i][0]:end_positions[i][0],start_positions[i][1]:end_positions[i][1]]
                     target[i * x.shape[0]:(i+1)* x.shape[0],:] = pic.reshape((x.shape[0], self.get_data_dims()))
                     target[(self.num_views/2 + i) * x.shape[0]:(self.num_views/2 +i+1)* x.shape[0],:] = pic[:,:,:,::-1].reshape((x.shape[0],self.get_data_dims()))
-            else:
+            else: # test = Ture, multiview = False，固定剪裁
                 pic = y[:,:,self.border_size:self.border_size+self.inner_size,self.border_size:self.border_size+self.inner_size] # just take the center for now
-                target[:,:] = pic.reshape((x.shape[0], self.get_data_dims()))
+                target[:,:] = pic.reshape((x.shape[0], self.get_data_dims())) # 把pic展平
         else:
             for c in xrange(0, x.shape[0], self.crop_chunk): # loop over cases in chunks
                 startY, startX = nr.randint(0,self.border_size*2 + 1), nr.randint(0,self.border_size*2 + 1)
@@ -243,7 +243,7 @@ class JPEGCroppedImageNetDP(ImageNetDP):
                 pic = y[c:c_end,:,startY:endY,startX:endX]
                 if nr.randint(2) == 0: # also flip the images with 50% probability
                     pic = pic[:,:,:,::-1]
-                target[c:c_end,:] = pic.reshape((c_end-c, self.get_data_dims()))
+                target[c:c_end,:] = pic.reshape((c_end-c, self.get_data_dims())) # target[:, :] = 新数据，修改原数组的内容；target = 新数组，只是让函数内部的局部变量 target 指向另一个对象
                 
                 # With 5% chance, replace this chunk with the average of this chunk and some future chunk
                 #if c >= self.crop_chunk and nr.rand() < 0.05:

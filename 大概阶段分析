@@ -1,0 +1,49 @@
+【第一阶段：制作数据集】
+
+原始ImageNet图片
+        ↓
+短边缩放至256
+        ↓
+长边中心裁剪至256
+        ↓
+编码成JPEG字节数据
+        ↓
+保存图片数据和标签
+        │
+        │ 这部分的具体代码尚未找到
+        ↓
+
+【第二阶段：加载数据】
+
+load_jpeg_batch(strings, labels, ...)
+        ↓
+从strings中读取JPEG字节
+        ↓
+Image.open() 解码图片
+        ↓
+转换RGB
+        ↓
+HWC → CHW → flatten
+        ↓
+整理labels
+        ↓
+返回 {'data': ..., 'labels': ...}
+        ↓
+
+【第三阶段：训练时的数据处理】
+
+get_cropped_data()
+        ↓
+__trim_borders()
+        ↓
+从256×256中随机裁剪224×224
+（测试时中心裁剪或十视图裁剪）
+        ↓
+subtract_mean()
+        ↓
+减去训练集均值
+        ↓
+
+【第四阶段：模型计算】
+
+卷积层 → ReLU → 池化层 → ...
